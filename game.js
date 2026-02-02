@@ -7,11 +7,21 @@ const playerPistol = new Image();
 const playerEmpty = new Image();
 const Enemy = new Image();
 const pistolCrate = new Image();
+const ChestIMG = new Image();
 
+// ost
+const song1 = new Audio('assets/OST/Da_Club.mp3');
+song1.loop = true;
+song1.volume = 0.5;
+
+ChestIMG.src = 'assets/chest.png';
 pistolCrate.src = 'assets/pistolCrate.png';
 Enemy.src = 'assets/enemy.png';
 playerPistol.src = 'assets/playerGun.png';
 playerEmpty.src = 'assets/playerEmpty.png';
+
+const easyBtn = { x: 300, y: 200, w: 128, h: 128 };
+const hardBtn = { x: 600, y: 200, w: 128, h: 128 };
 
 const mouse = { x: 0, y: 0 };
 canvas.addEventListener('mousemove', (e) => {
@@ -46,14 +56,16 @@ let currentFloor = 1;
 let gamePaused = false;
 let floorTransition = false;
 let floorExit = null;
+let difficultyMult = 0;
 const EXIT_SIZE = 30;
 let crates = []; 
+let choosingDifficulty = true; 
 
 
 const enemyTypes = {
-    slime: { hp: 15, speed: 1, damage: 5 },
+    slime: { hp: 5, speed: 1, damage: 2 },
     fast: { hp: 5, speed: 2.5, damage: 3 },
-    tank: { hp: 30, speed: 0.5, damage: 10 }
+    tank: { hp: 10, speed: 0.5, damage: 5 }
 };
 
 
@@ -63,23 +75,61 @@ const guns = {
 };
 
 
-canvas.addEventListener('click', () => {
+canvas.addEventListener("click", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    if (choosingDifficulty) {
+
+        // easy
+        if (
+            mouseX > easyBtn.x &&
+            mouseX < easyBtn.x + easyBtn.w &&
+            mouseY > easyBtn.y &&
+            mouseY < easyBtn.y + easyBtn.h
+        ) {
+            difficultyMult = 0;
+            choosingDifficulty = false;
+            song1.play();
+            generateFloor();
+            fixSpawn();
+            spawnEnemies();
+            return;
+        }
+
+        // hard
+        if (
+            mouseX > hardBtn.x &&
+            mouseX < hardBtn.x + hardBtn.w &&
+            mouseY > hardBtn.y &&
+            mouseY < hardBtn.y + hardBtn.h
+        ) {
+            difficultyMult = 3;
+            choosingDifficulty = false;
+            song1.play();            
+            generateFloor();
+            fixSpawn();
+            spawnEnemies();
+            return;
+        }
+    }
+
     const gun = guns[player.currentGun];
     if (!gun) return;
 
     if (player.ammo[player.currentGun] <= 0) return;
 
     const now = Date.now();
-    if (now - gun.lastShot < gun.fireRate) return; 
+    if (now - gun.lastShot < gun.fireRate) return;
     gun.lastShot = now;
 
-    if (player.currentGun === 'pistol') {
+    if (player.currentGun === "pistol") {
         const angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
         player.bullets.push({ x: player.x, y: player.y, angle, speed: gun.bulletSpeed });
         player.ammo.pistol--;
     }
 
-    if (player.currentGun === 'shotgun') {
+    if (player.currentGun === "shotgun") {
         const baseAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
         for (let i = 0; i < gun.bulletsPerShot; i++) {
             const spreadAngle = baseAngle + (Math.random() - 0.5) * gun.spread;
@@ -99,7 +149,16 @@ document.addEventListener('keydown', (e) => {
             const dist = Math.hypot(dx, dy);
 
             if (dist < 30 && crate.type === 'pistolCrate') {
-                player.ammo['pistol'] = 50;
+                //if (player.ammo['pistol'] < 50) {
+                player.ammo['pistol'] += 50;
+                crates.splice(i, 1);
+                //} else if (player.ammo['pistol'] >= 50) {
+                //    player.ammo['pistol'] += 30;
+                //    crates.splice(i, 1);
+                //}
+            }
+            if (dist < 30 && crate.type === 'Chest') {
+                // player.ammo['pistol'] += 30; FOR NOW IT DOES NOTHING
                 crates.splice(i, 1);
             }
         });
@@ -126,6 +185,12 @@ document.addEventListener('keyup', (e) => {
 function update() {
     if (gamePaused) return;
 
+    if (choosingDifficulty) {
+        chooseDifficulty();
+        requestAnimationFrame(update);
+        return;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (keys['w']) movePlayer(0, -player.speed);
@@ -150,6 +215,22 @@ function update() {
         } while (isWall(ex, ey));
 
         floorExit = { x: ex, y: ey, size: EXIT_SIZE };
+
+        let cx, cy;
+        do {
+            const gx = Math.floor(Math.random() * map[0].length);
+            const gy = Math.floor(Math.random() * map.length);
+            cx = gx * CELL_SIZE + CELL_SIZE / 2;
+            cy = gy * CELL_SIZE + CELL_SIZE / 2;
+        } while (isWall(cx, cy));
+        crates.push({
+            x: cx,
+            y: cy,
+            type: 'Chest',
+            width: 32,
+            height: 32,
+            img: ChestIMG
+        });
     }
 
     const angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
@@ -202,18 +283,20 @@ function update() {
                 player.bullets.splice(i, 1);
 
                 if (enemy.hp <= 0) {
-                    if (enemy.type === 'tank') {
-                        crates.push({
-                            x: enemy.x,
-                            y: enemy.y,
-                            type: 'pistolCrate',
-                            width: 32,
-                            height: 32,
-                            img: pistolCrate
-                        });
-                    }
 
-                    enemies.splice(j, 1);
+                // 1/3 chance to drop pistol crate
+                    if (Math.random() < 1 / 3) {
+                        crates.push({
+                        x: enemy.x,
+                        y: enemy.y,
+                        type: 'pistolCrate',
+                        width: 32,
+                        height: 32,
+                        img: pistolCrate
+                    });
+                }
+
+                enemies.splice(j, 1);
                 }
                 break;
             }
@@ -258,7 +341,7 @@ function update() {
 
         if (dist < 12 + player.size/2) {
             if (!enemy.lastHit || now - enemy.lastHit > 500) { // 500ms cooldown
-                player.hp -= enemy.damage;
+                player.hp -= (enemy.damage + (2 * difficultyMult));
                 enemy.lastHit = now;
             }
         }
@@ -272,7 +355,7 @@ function update() {
 
         const barWidth = 24;
         const barHeight = 4;
-        const healthRatio = enemy.hp / enemyTypes[enemy.type].hp;
+        const healthRatio = enemy.hp / (enemyTypes[enemy.type].hp + (2 * difficultyMult));
 
         ctx.fillStyle = 'black';
         ctx.fillRect(enemy.x - barWidth/2, enemy.y - 20, barWidth, barHeight);
@@ -418,7 +501,7 @@ function spawnEnemies() {
             x,
             y,
             type,
-            hp: data.hp,
+            hp: (data.hp + (2 * difficultyMult)),
             speed: data.speed,
             damage: data.damage
         });
@@ -426,6 +509,8 @@ function spawnEnemies() {
 }
 
 function gameOver() {
+    song1.pause();
+    song1.currentTime = 0;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = 'black';
@@ -437,6 +522,13 @@ function gameOver() {
     ctx.textBaseline = 'middle';
     ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
     ctx.fillText(`Reached floor ${currentFloor}`, canvas.width / 2, canvas.height / 2 + 80);
+
+    ctx.font = '32px Arial';
+    const diffText = (difficultyMult % 10 === 3)
+        ? "You played on NOT EASY difficulty"
+        : "You played on EASY difficulty";
+
+    ctx.fillText(diffText, canvas.width / 2, canvas.height / 2 + 140);
 }
 
 function newFloor() {
@@ -454,6 +546,7 @@ function newFloor() {
 
     player.bullets = [];
     enemies = [];
+    crates = [];
 
     setTimeout(() => {
         currentFloor++;
@@ -468,7 +561,21 @@ function newFloor() {
     }, 5000);
 }
 
-generateFloor();
-fixSpawn();
-spawnEnemies();
+function chooseDifficulty() {
+    ctx.fillStyle = "gray";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.drawImage(playerEmpty, easyBtn.x + 50, easyBtn.y + 100);
+    ctx.drawImage(playerEmpty, hardBtn.x + 50, hardBtn.y + 100);
+
+    ctx.fillStyle = "white";
+    ctx.font = "30px Arial";
+    ctx.textAlign = "center";
+
+    ctx.fillText("Easy", easyBtn.x + easyBtn.w / 2, easyBtn.y + easyBtn.h + 40);
+    ctx.fillText("Not Easy", hardBtn.x + hardBtn.w / 2, hardBtn.y + hardBtn.h + 40);
+}
+
 update();
+
+

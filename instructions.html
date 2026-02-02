@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head></head>
+        <meta charset="UTF-8">
+        <title>Instructions</title>
+        <style>
+            body {
+                background-color: #8B4513;
+                color: black;
+            }
+            
+            .instructions {
+                font-size: 24px;
+                text-align: center;
+                margin-top: 50px;
+            }
+            
+            p {
+                font-weight: bold;
+            }
+            
+            .supabutton {
+                display: flex;
+                justify-content: center;
+                margin-top: 20px;
+            }
+            
+            .rect {
+                width: 200px;
+                height: 60px;
+                background-color: black;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="instructions">
+            <h1>How to Play</h1>
+            <p>Use WASD to move around the hotel.</p>
+            <p>Press 1 to equip your weapon.</p>
+            <p>Press E to interact with items.</p>
+            <p>Destroy all enemies to get to the next floor.</p>
+            <p>Goal? Go through 100 floors.</p>
+            <div class="supabutton">
+                <div class="rect" onclick="location.href='changelog.html'">
+                    <h2 style="color: white; font-size: 25px;">CHANGELOG</h2>
+                </div>
+            </div>
+            <div class="supabutton">
+                <div class="rect" onclick="location.href='index.html'"> 
+                    <h2 style="color: white;">BACK</h2>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
